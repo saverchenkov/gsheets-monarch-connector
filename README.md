@@ -82,6 +82,33 @@ This requires two separate terminal windows.
 3.  To make the formula draggable, use the `ROW()` function:
     *   **Example:** `=GET_MONARCH_TOTAL("D" & ROW())`
 
+### Forcing a Refresh with a Button
+
+Google Sheets caches the results of custom functions. To force a recalculation of all your Monarch totals at once, you can create a "Refresh" button.
+
+**Step 1: Add a Reference Cell to Your Formulas**
+
+1.  Decide on a cell that will act as your refresh trigger (e.g., `A1` on your 'July' sheet).
+2.  Modify all your `=GET_MONARCH_TOTAL()` formulas to include a reference to this cell.
+    *   **Example:** `=GET_MONARCH_TOTAL("D" & ROW(), July!A1)`
+    *   **Important:** Make sure to use an absolute reference (`$A$1`) if you plan to drag the formula across different columns or sheets, or if your refresh cell is on a different sheet.
+
+**Step 2: Create the Button**
+
+1.  In your Google Sheet, go to **Insert > Drawing**.
+2.  Create a shape that will be your button (e.g., a rounded rectangle). Add text like "Refresh".
+3.  Click **Save and Close**. The drawing will appear on your sheet. You can move and resize it as needed.
+
+**Step 3: Assign the Script**
+
+1.  Click on the drawing you just created.
+2.  Click the three-dot menu icon that appears in the top-right corner of the drawing.
+3.  Select **Assign script**.
+4.  In the dialog box that appears, type the name of our new function: `refreshSheet`
+5.  Click **OK**.
+
+Now, every time you click the button, it will run the `refreshSheet` function, which updates the value in your trigger cell (`A1`). This change will force all the formulas that reference that cell to recalculate and fetch the latest data from Monarch.
+
 ## Testing the Proxy Server
 
 You can run a suite of automated tests to ensure the proxy server is working correctly.

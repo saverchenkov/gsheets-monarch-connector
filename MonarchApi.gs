@@ -18,7 +18,7 @@ const MONARCH_TOKEN = 'YOUR_MONARCH_TOKEN_HERE';
  * @return The total amount of transactions.
  * @customfunction
  */
-function GET_MONARCH_TOTAL(cellReference) {
+function GET_MONARCH_TOTAL(cellReference, refreshTrigger) {
   // Input validation to ensure the user provides a string reference like "D30"
   if (typeof cellReference !== 'string' || !/^[A-Z]+[0-9]+$/i.test(cellReference)) {
     return 'Error: Input must be a cell reference in quotes, e.g., "D30".';
@@ -158,4 +158,13 @@ function testMonarchApi() {
   Logger.log("Calling proxy with filters: " + JSON.stringify(testFilters, null, 2));
   const response = _callProxyServer(testFilters);
   Logger.log("Proxy Response: " + JSON.stringify(response, null, 2));
+}
+
+/**
+ * A function to be assigned to a button in the sheet.
+ * It updates a cell with the current time to force a refresh of all formulas
+ * that reference it.
+ */
+function refreshSheet() {
+  SpreadsheetApp.getActiveSpreadsheet().getSheetByName('July').getRange('A1').setValue(new Date());
 }
