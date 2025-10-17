@@ -8,6 +8,9 @@ const NGROK_URL = 'YOUR_NGROK_URL_HERE';
 
 // 2. Replace this with your Monarch Money API Token
 const MONARCH_TOKEN = 'YOUR_MONARCH_TOKEN_HERE';
+
+// 3. Add the secret API key for your proxy server
+const PROXY_API_KEY = 'YOUR_NEW_API_KEY_HERE';
 // ---------------------
 
 
@@ -94,7 +97,8 @@ function _callProxyServer(filters) {
     'method': 'post',
     'contentType': 'application/json',
     'headers': {
-      'Authorization': 'Token ' + MONARCH_TOKEN
+      'Authorization': 'Token ' + MONARCH_TOKEN,
+      'X-API-Key': PROXY_API_KEY
     },
     'payload': JSON.stringify(payload),
     'muteHttpExceptions': true

@@ -8,10 +8,18 @@ const GRAPHQL_URL = 'https://api.monarchmoney.com/graphql';
 
 app.use(bodyParser.json());
 
+const PROXY_API_KEY = process.env.PROXY_API_KEY;
+
 app.post('/get-transactions', async (req, res) => {
   console.log(`[${new Date().toISOString()}] Received request for /get-transactions`);
   
-  // 1. Extract token from header
+  // 1. Check for Proxy API Key
+  const apiKey = req.headers['x-api-key'];
+  if (!PROXY_API_KEY || apiKey !== PROXY_API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid or missing API Key.' });
+  }
+
+  // 2. Extract token from header
   const authHeader = req.headers['authorization'];
   if (!authHeader || !authHeader.startsWith('Token ')) {
     return res.status(401).json({ error: 'Authorization header with a Token is required.' });

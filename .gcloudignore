@@ -1,0 +1,16 @@
+# This file specifies files that are *not* uploaded to Google Cloud when
+# deploying a service. It works similarly to a .gitignore file.
+
+# Node.js dependencies
+node_modules/
+
+# Jest cache
+.jest_cache/
+
+# Test files
+*.test.js
+
+# Local development files
+.env
+.gcloudignore
+README.md
