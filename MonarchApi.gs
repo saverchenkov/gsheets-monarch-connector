@@ -55,7 +55,13 @@ function GET_MONARCH_TOTAL(cellReference, refreshTrigger) {
 
   let total = 0;
   if (apiResponse && apiResponse.aggregates && apiResponse.aggregates[0] && apiResponse.aggregates[0].summary) {
-    total = apiResponse.aggregates[0].summary.sumExpense;
+    const summary = apiResponse.aggregates[0].summary;
+    const sumExpense = summary.sumExpense || 0;
+    const sumIncome = summary.sumIncome || 0;
+    // In Monarch, expenses are positive and income is negative in the API response.
+    // To get a meaningful total for a category, we often want the absolute sum.
+    // For this use case, we will sum the absolute values.
+    total = Math.abs(sumExpense) + Math.abs(sumIncome);
   }
 
   // Store the new value in the cache for 6 hours.
