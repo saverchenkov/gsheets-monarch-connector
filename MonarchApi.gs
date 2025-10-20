@@ -3,14 +3,17 @@
  */
 
 // --- CONFIGURATION ---
-// 1. Replace this with your actual ngrok URL
-const NGROK_URL = 'YOUR_NGROK_URL_HERE';
+// 1. Replace this with your deployed proxy server URL
+const PROXY_SERVER_URL = 'YOUR_PROXY_SERVER_URL_HERE';
 
 // 2. Replace this with your Monarch Money API Token
 const MONARCH_TOKEN = 'YOUR_MONARCH_TOKEN_HERE';
 
 // 3. Add the secret API key for your proxy server
 const PROXY_API_KEY = 'YOUR_NEW_API_KEY_HERE';
+
+// 4. Set the cell location for your refresh checkbox (e.g., "E1")
+const REFRESH_CELL = 'E1';
 // ---------------------
 
 
@@ -18,27 +21,30 @@ const PROXY_API_KEY = 'YOUR_NEW_API_KEY_HERE';
  * A custom function that calculates the total amount of transactions from a Monarch Money search URL.
  *
  * @param {string} cellReference The cell reference (e.g., "C2") containing the HYPERLINK formula.
+ * @param {string} refreshTrigger (optional) The cell reference (e.g., "C3") containing the refresh trigger cell (a checkbox that will trigger an update and recalculation)
  * @return The total amount of transactions.
  * @customfunction
  */
 function GET_MONARCH_TOTAL(cellReference, refreshTrigger) {
-  const sheetName = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getName();
-  const cache = CacheService.getScriptCache();
-  const cacheKey = `monarch_total_${sheetName}_${cellReference}`;
-  const cachedValue = cache.get(cacheKey);
-
-  // If we have a cached value, return it immediately.
-  if (cachedValue !== null) {
-    return parseFloat(cachedValue);
-  }
-
   // Input validation
   if (typeof cellReference !== 'string' || !/^[A-Z]+[0-9]+$/i.test(cellReference)) {
     return 'Error: Input must be a cell reference in quotes, e.g., "D30".';
   }
-  if (NGROK_URL === 'YOUR_NGROK_URL_HERE' || MONARCH_TOKEN === 'YOUR_MONARCH_TOKEN_HERE') {
-    return "Error: Please set your ngrok URL and Monarch Token in the MonarchApi.gs script.";
+  if (PROXY_SERVER_URL === 'YOUR_PROXY_SERVER_URL_HERE' || MONARCH_TOKEN === 'YOUR_MONARCH_TOKEN_HERE') {
+    return "Error: Please set your Proxy Server URL and Monarch Token in the MonarchApi.gs script.";
   }
+
+  // The refreshTrigger parameter is not directly used, but its presence in the formula
+  // ensures that the function recalculates when the trigger cell's value changes.
+  // This forces a fresh call to the API, bypassing the cache.
+  let total = null;
+  total = _getFromMonarchCache(`${cellReference}`);
+
+  // Cache hit
+  if (total !== undefined && refreshTrigger === undefined) {
+    return total;
+  }
+  total = 0;
 
   const url = _getURLFromCell(cellReference);
   if (!url) {
@@ -53,52 +59,28 @@ function GET_MONARCH_TOTAL(cellReference, refreshTrigger) {
     return "Proxy Error: " + apiResponse.error;
   }
 
-  let total = 0;
+  // Log the entire response to debug calculation issues
+  Logger.log(`API Response for ${cellReference}: ${JSON.stringify(apiResponse, null, 2)}`);
+
+  
   if (apiResponse && apiResponse.aggregates && apiResponse.aggregates[0] && apiResponse.aggregates[0].summary) {
     const summary = apiResponse.aggregates[0].summary;
     const sumExpense = summary.sumExpense || 0;
     const sumIncome = summary.sumIncome || 0;
-    // In Monarch, expenses are positive and income is negative in the API response.
-    // To get a meaningful total for a category, we often want the absolute sum.
-    // For this use case, we will sum the absolute values.
-    total = Math.abs(sumExpense) + Math.abs(sumIncome);
+    total = sumExpense + sumIncome;
   }
 
-  // Store the new value in the cache for 6 hours.
-  cache.put(cacheKey, total.toString(), 21600);
+  _addToMonarchCache(`${cellReference}`, total);
   return total;
 }
-
-/**
- * A new test function to debug a specific URL from the sheet by calling the main function.
- * Instructions:
- * 1. Set the `cellToTest` variable to the cell you want to debug (e.g., "D32").
- * 2. Run this function from the Apps Script editor.
- * 3. Check the logs to see the final result.
- */
-function debugSpecificUrl() {
-  const cellToTest = "D32"; // <--- SET THIS TO THE CELL YOU WANT TO TEST
-  
-  Logger.log(`--- Testing GET_MONARCH_TOTAL with cell: "${cellToTest}" ---`);
-
-  const result = GET_MONARCH_TOTAL(cellToTest);
-  
-  Logger.log(`Result: ${result}`);
-  
-  Logger.log("--- Test Complete ---");
-}
-
 
 /**
  * Calls the local proxy server to get transaction data.
  * @private
  */
 function _callProxyServer(filters) {
-  const proxyUrl = NGROK_URL + '/get-transactions';
-  const payload = {
-    filters: filters
-  };
-  
+  const proxyUrl = PROXY_SERVER_URL + '/get-transactions';
+  const payload = { filters: filters };
   const options = {
     'method': 'post',
     'contentType': 'application/json',
@@ -118,7 +100,6 @@ function _callProxyServer(filters) {
     return { error: "Failed to connect to proxy server. Is it running?" };
   }
 }
-
 
 /**
  * Extracts the URL from a cell's HYPERLINK formula.
@@ -156,52 +137,74 @@ function _getFiltersFromUrl(url) {
 }
 
 /**
- * A test function to verify the proxy integration.
- */
-function testMonarchApi() {
-  const testFilters = {
-    startDate: "2024-01-01",
-    endDate: "2024-01-31",
-    categories: ["160556687721490945"]
-  };
-  
-  Logger.log("Calling proxy with filters: " + JSON.stringify(testFilters, null, 2));
-  const response = _callProxyServer(testFilters);
-  Logger.log("Proxy Response: " + JSON.stringify(response, null, 2));
-}
-
-/**
- * A function to be assigned to a button in the sheet.
- * It updates a cell with the current time to force a refresh of all formulas
- * that reference it.
- */
-function refreshSheet() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const sheetName = sheet.getName();
-  const cache = CacheService.getScriptCache();
-  const dataRange = sheet.getDataRange();
-  const values = dataRange.getValues();
-  const keysToRemove = [];
-
-  // Find all cache keys associated with the current sheet.
-  for (let i = 0; i < values.length; i++) {
-    for (let j = 0; j < values[i].length; j++) {
-      const cellReference = dataRange.getCell(i + 1, j + 1).getA1Notation();
-      keysToRemove.push(`monarch_total_${sheetName}_${cellReference}`);
-    }
-  }
-
-  // Remove all keys for the current sheet in a single batch operation.
-  if (keysToRemove.length > 0) {
-    cache.removeAll(keysToRemove);
-  }
-}
-/**
  * A custom function that returns the name of the current sheet.
- *
  * @return The name of the active sheet.
  * @customfunction
  */
 function getSheetName() {
   return SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getName();
+}
+
+/**
+ * Adds a cache key to a centralized registry for the active sheet.
+ * @private
+ */
+function _addToMonarchCache(key, value) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const cache = CacheService.getScriptCache();
+  const registryKey = `monarch_${sheet.getName()}`;
+
+  const sheetCacheJson = cache.get(registryKey);
+  let sheetCache = sheetCacheJson ? JSON.parse(sheetCacheJson) : {};
+
+  sheetCache[key] = value
+  cache.put(registryKey, JSON.stringify(sheetCache), 21600); // Store for 6 hours
+}
+
+/**
+ * Gets a value from Monarch cache for the active sheet.
+ * @private
+ */
+function _getFromMonarchCache(key) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const cache = CacheService.getScriptCache();
+  const registryKey = `monarch_${sheet.getName()}`;
+
+  const sheetCacheJson = cache.get(registryKey);
+  let sheetCache = sheetCacheJson ? JSON.parse(sheetCacheJson) : {};
+
+  return sheetCache[key]; // will be undefined on cache miss
+}
+
+/**
+ * Clears the cache for all Monarch-related cells on the current sheet using the registry.
+ */
+function _clearSheetMonarchCache() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const cache = CacheService.getScriptCache();
+  const registryKey = `monarch_${sheet.getName()}`;
+  const keysJson = cache.get(registryKey);
+
+  if (keysJson) {
+    cache.remove(registryKey);
+    Logger.log(`Successfully cleared cached items for sheet '${sheet.getName()}'.`);
+  } else {
+    Logger.log("Cache registry is empty. Nothing to clear.");
+  }
+}
+
+/**
+ * An installable trigger that runs automatically when a user edits the spreadsheet.
+ *
+ * @param {Object} e The event object.
+ */
+function onEdit(e) {
+  const range = e.range;
+  
+  // Check if the edited cell is our refresh checkbox.
+  if (range.getA1Notation() === REFRESH_CELL) {
+    // Clear the cache for the current sheet whenever the refresh cell is edited.
+    _clearSheetMonarchCache();
+    SpreadsheetApp.flush(); // Ensures changes are applied immediately.
+  }
 }
