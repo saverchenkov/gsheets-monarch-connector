@@ -40,7 +40,7 @@ This is the recommended setup for a permanent and reliable integration.
 3.  Replace `'YOUR_MONARCH_TOKEN_HERE'` with the token you just copied.
 4.  Generate a strong, random string to use as your proxy server's API key.
 5.  Replace `'YOUR_NEW_API_KEY_HERE'` with the API key you just generated.
-6.  Leave the `NGROK_URL` for now. We will replace this with the Cloud Run URL later. Save the script.
+6.  Leave the `PROXY_SERVER_URL` for now. We will replace this with the Cloud Run URL later. Save the script.
 
 ### Step 3: Deploy the Proxy Server
 
@@ -62,7 +62,7 @@ This is the recommended setup for a permanent and reliable integration.
 ### Step 4: Final Configuration
 
 1.  Go back to the Apps Script editor.
-2.  Replace the entire `NGROK_URL` variable and its value with the **Service URL** you just copied.
+2.  Replace `'YOUR_PROXY_SERVER_URL_HERE'` with the **Service URL** you just copied.
 3.  Save the script. Your integration is now live!
 
 ---
