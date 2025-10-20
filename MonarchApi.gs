@@ -158,7 +158,7 @@ function _addToMonarchCache(key, value) {
   let sheetCache = sheetCacheJson ? JSON.parse(sheetCacheJson) : {};
 
   sheetCache[key] = value
-  cache.put(registryKey, JSON.stringify(sheetCache), 21600); // Store for 6 hours
+  cache.put(registryKey, JSON.stringify(sheetCache), 31536000); // Store for 1 year
 }
 
 /**
