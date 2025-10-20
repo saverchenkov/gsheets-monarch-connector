@@ -172,8 +172,8 @@ function refreshSheet() {
   // Clear the entire cache to force a refresh of all Monarch totals.
   CacheService.getScriptCache().removeAll();
   
-  // Update the trigger cell to force recalculation.
-  SpreadsheetApp.getActiveSpreadsheet().getSheetByName('July').getRange('A1').setValue(new Date());
+  // Update the trigger cell on the currently active sheet to force recalculation.
+  SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getRange('A1').setValue(new Date());
 }
 /**
  * A custom function that returns the name of the current sheet.
