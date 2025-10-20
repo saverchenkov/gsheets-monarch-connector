@@ -175,3 +175,12 @@ function testMonarchApi() {
 function refreshSheet() {
   SpreadsheetApp.getActiveSpreadsheet().getSheetByName('July').getRange('A1').setValue(new Date());
 }
+/**
+ * A custom function that returns the name of the current sheet.
+ *
+ * @return The name of the active sheet.
+ * @customfunction
+ */
+function getSheetName() {
+  return SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getName();
+}
