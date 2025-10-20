@@ -22,48 +22,44 @@ const PROXY_API_KEY = 'YOUR_NEW_API_KEY_HERE';
  * @customfunction
  */
 function GET_MONARCH_TOTAL(cellReference, refreshTrigger) {
-  // Input validation to ensure the user provides a string reference like "D30"
+  const cache = CacheService.getScriptCache();
+  const cacheKey = `monarch_total_${cellReference}`;
+  const cachedValue = cache.get(cacheKey);
+
+  // If we have a cached value, return it immediately.
+  if (cachedValue !== null) {
+    return parseFloat(cachedValue);
+  }
+
+  // Input validation
   if (typeof cellReference !== 'string' || !/^[A-Z]+[0-9]+$/i.test(cellReference)) {
     return 'Error: Input must be a cell reference in quotes, e.g., "D30".';
   }
-
   if (NGROK_URL === 'YOUR_NGROK_URL_HERE' || MONARCH_TOKEN === 'YOUR_MONARCH_TOKEN_HERE') {
     return "Error: Please set your ngrok URL and Monarch Token in the MonarchApi.gs script.";
   }
 
   const url = _getURLFromCell(cellReference);
   if (!url) {
-    // Return 0 instead of an error string to prevent #VALUE! errors on sheet load.
-    // The cell will show 0 until the next successful refresh.
-    Logger.log(`Could not find a valid HYPERLINK in cell ${cellReference}. Returning 0.`);
-    return 0;
+    return 0; // Return 0 if no hyperlink is found, preventing errors.
   }
 
   const filters = _getFiltersFromUrl(url);
   const apiResponse = _callProxyServer(filters);
 
-  // Improved Error Handling: Check for a specific error message from the proxy
   if (apiResponse && apiResponse.error) {
     Logger.log("Error from proxy server: " + JSON.stringify(apiResponse));
-    // Try to extract a more specific message from the GraphQL error details
-    if (apiResponse.details && apiResponse.details.includes("Variable \\\"$filters\\\" got invalid value")) {
-      return "Error: Invalid date or filter in HYPERLINK formula.";
-    }
     return "Proxy Error: " + apiResponse.error;
   }
 
-  // The API returns the summary inside an array, so we need to access the first element.
+  let total = 0;
   if (apiResponse && apiResponse.aggregates && apiResponse.aggregates[0] && apiResponse.aggregates[0].summary) {
-    // If a summary exists, return the sum of expenses (which will be 0 if there are no transactions).
-    return apiResponse.aggregates[0].summary.sumExpense;
-  } else if (apiResponse && apiResponse.aggregates) {
-    // If the aggregates array exists but is empty or has no summary, it means no transactions were found.
-    return 0;
+    total = apiResponse.aggregates[0].summary.sumExpense;
   }
-  else {
-    Logger.log("Error: Could not retrieve a valid summary from the proxy. Response: " + JSON.stringify(apiResponse));
-    return "Error: Could not retrieve transactions.";
-  }
+
+  // Store the new value in the cache for 6 hours.
+  cache.put(cacheKey, total.toString(), 21600);
+  return total;
 }
 
 /**
@@ -173,6 +169,10 @@ function testMonarchApi() {
  * that reference it.
  */
 function refreshSheet() {
+  // Clear the entire cache to force a refresh of all Monarch totals.
+  CacheService.getScriptCache().removeAll();
+  
+  // Update the trigger cell to force recalculation.
   SpreadsheetApp.getActiveSpreadsheet().getSheetByName('July').getRange('A1').setValue(new Date());
 }
 /**
