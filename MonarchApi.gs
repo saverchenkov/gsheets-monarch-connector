@@ -33,7 +33,10 @@ function GET_MONARCH_TOTAL(cellReference, refreshTrigger) {
 
   const url = _getURLFromCell(cellReference);
   if (!url) {
-    return "Error: Could not find a valid HYPERLINK in the cell.";
+    // Return 0 instead of an error string to prevent #VALUE! errors on sheet load.
+    // The cell will show 0 until the next successful refresh.
+    Logger.log(`Could not find a valid HYPERLINK in cell ${cellReference}. Returning 0.`);
+    return 0;
   }
 
   const filters = _getFiltersFromUrl(url);
