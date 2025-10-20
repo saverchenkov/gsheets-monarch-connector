@@ -22,8 +22,9 @@ const PROXY_API_KEY = 'YOUR_NEW_API_KEY_HERE';
  * @customfunction
  */
 function GET_MONARCH_TOTAL(cellReference, refreshTrigger) {
+  const sheetName = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getName();
   const cache = CacheService.getScriptCache();
-  const cacheKey = `monarch_total_${cellReference}`;
+  const cacheKey = `monarch_total_${sheetName}_${cellReference}`;
   const cachedValue = cache.get(cacheKey);
 
   // If we have a cached value, return it immediately.
@@ -169,11 +170,25 @@ function testMonarchApi() {
  * that reference it.
  */
 function refreshSheet() {
-  // Clear the entire cache to force a refresh of all Monarch totals.
-  CacheService.getScriptCache().removeAll();
-  
-  // Update the trigger cell on the currently active sheet to force recalculation.
-  SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getRange('A1').setValue(new Date());
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const sheetName = sheet.getName();
+  const cache = CacheService.getScriptCache();
+  const dataRange = sheet.getDataRange();
+  const values = dataRange.getValues();
+  const keysToRemove = [];
+
+  // Find all cache keys associated with the current sheet.
+  for (let i = 0; i < values.length; i++) {
+    for (let j = 0; j < values[i].length; j++) {
+      const cellReference = dataRange.getCell(i + 1, j + 1).getA1Notation();
+      keysToRemove.push(`monarch_total_${sheetName}_${cellReference}`);
+    }
+  }
+
+  // Remove all keys for the current sheet in a single batch operation.
+  if (keysToRemove.length > 0) {
+    cache.removeAll(keysToRemove);
+  }
 }
 /**
  * A custom function that returns the name of the current sheet.
