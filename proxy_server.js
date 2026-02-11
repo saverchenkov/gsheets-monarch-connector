@@ -4,7 +4,7 @@ import { GraphQLClient, gql } from 'graphql-request';
 
 const app = express();
 const port = 3000;
-const GRAPHQL_URL = 'https://api.monarchmoney.com/graphql';
+const GRAPHQL_URL = 'https://api.monarch.com/graphql';
 
 app.use(bodyParser.json());
 
